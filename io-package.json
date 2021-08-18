@@ -1,0 +1,110 @@
+{
+    "common": {
+        "name": "zehnder-cloud",
+        "version": "0.0.1",
+        "news": {
+            "0.0.1": {
+                "en": "initial release",
+                "de": "Erstveröffentlichung",
+                "ru": "Начальная версия",
+                "pt": "lançamento inicial",
+                "nl": "Eerste uitgave",
+                "fr": "Première version",
+                "it": "Versione iniziale",
+                "es": "Versión inicial",
+                "pl": "Pierwsze wydanie",
+                "zh-cn": "首次出版"
+            }
+        },
+        "titleLang": {
+            "en": "Zehnder Cloud",
+            "de": "Zehnder Cloud",
+            "ru": "Zehnder Cloud",
+            "pt": "Zehnder Cloud",
+            "nl": "Zehnder Cloud",
+            "fr": "Nuage de Zehnder",
+            "it": "Zehnder Cloud",
+            "es": "Nube de Zehnder",
+            "pl": "Chmura Zehndera",
+            "zh-cn": "曾德云"
+        },
+        "desc": {
+            "en": "Adapter for Zehnder Cloud API",
+            "de": "Adapter für Zehnder Cloud API",
+            "ru": "Адаптер для Zehnder Cloud API",
+            "pt": "Adaptador para Zehnder Cloud API",
+            "nl": "Adapter voor Zehnder Cloud API",
+            "fr": "Adaptateur pour l'API Zehnder Cloud",
+            "it": "Adattatore per Zehnder Cloud API",
+            "es": "Adaptador para Zehnder Cloud API",
+            "pl": "Adapter do interfejsu Zehnder Cloud API",
+            "zh-cn": "Zehnder Cloud API 适配器"
+        },
+        "authors": [
+            "TA2k <tombox2020@gmail.com>"
+        ],
+        "keywords": [
+            "zehnder",
+            "comfoairq"
+        ],
+        "license": "MIT",
+        "platform": "Javascript/Node.js",
+        "main": "main.js",
+        "icon": "zehnder-cloud.png",
+        "enabled": true,
+        "extIcon": "https://raw.githubusercontent.com/TA2k/ioBroker.zehnder-cloud/master/admin/zehnder-cloud.png",
+        "readme": "https://github.com/TA2k/ioBroker.zehnder-cloud/blob/master/README.md",
+        "loglevel": "info",
+        "mode": "daemon",
+        "type": "climate-control",
+        "compact": true,
+        "connectionType": "cloud",
+        "dataSource": "poll",
+        "materialize": true,
+        "dependencies": [
+            {
+                "js-controller": ">=3.0.0"
+            }
+        ],
+        "globalDependencies": [
+            {
+                "admin": ">=4.0.9"
+            }
+        ]
+    },
+    "encryptedNative": [
+        "password"
+    ],
+    "protectedNative": [
+        "password"
+    ],
+    "native": {
+        "username": "",
+        "password": "",
+        "interval": 5
+    },
+    "objects": [],
+    "instanceObjects": [
+        {
+            "_id": "info",
+            "type": "channel",
+            "common": {
+                "name": "Information"
+            },
+            "native": {}
+        },
+        {
+            "_id": "info.connection",
+            "type": "state",
+            "common": {
+                "role": "indicator.connected",
+                "name": "Device or service connected",
+                "type": "boolean",
+                "read": true,
+                "write": false,
+                "def": false
+            },
+            "native": {}
+        }
+    ]
+}
