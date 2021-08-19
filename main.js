@@ -12,6 +12,8 @@ const qs = require("qs");
 
 const crypto = require("crypto");
 const Json2iob = require("./lib/json2iob");
+const axiosCookieJarSupport = require("axios-cookiejar-support").default;
+const tough = require("tough-cookie");
 class ZehnderCloud extends utils.Adapter {
     /**
      * @param {Partial<utils.AdapterOptions>} [options={}]
@@ -38,8 +40,8 @@ class ZehnderCloud extends utils.Adapter {
             this.log.info("Set interval to minimum 0.5");
             this.config.interval = 0.5;
         }
-        this.tenant = "4a277b22-52a9-4cd0-a9b3-48d7c19c79a4";
-        this.policy = "B2C_1_signin_signup_enduser";
+        axiosCookieJarSupport(axios);
+        this.cookieJar = new tough.CookieJar();
         this.requestClient = axios.create();
         this.updateInterval = null;
         this.reLoginTimeout = null;
@@ -60,25 +62,19 @@ class ZehnderCloud extends utils.Adapter {
         }
     }
     async login() {
-        const [code_verifier, codeChallenge] = this.getCodeChallenge();
-        const response = await this.requestClient({
+        const headers = {
+            "User-Agent": "ioBroker 1.0",
+        };
+        const htmlLoginForm = await this.requestClient({
             method: "get",
             url:
-                "https://" +
-                this.tenant +
-                ".b2clogin.com/" +
-                this.tenant +
-                ".onmicrosoft.com/" +
-                this.policy +
-                "/oauth2/v2.0/authorize?client_id=90c0fe63-bcf2-44d5-8fb7-b8bbc0b29dc6 &response_type=code&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_mode=query&scope=90c0fe63-bcf2-44d5-8fb7-b8bbc0b29dc6%20offline_access&state=" +
+                "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/oauth2/v2.0/authorize?p=B2C_1_signin_signup_enduser&client_id=df77b1ce-c368-4f7f-b0e6-c1406ac6bac9&nonce=" +
                 this.randomString(16) +
-                "&code_challenge=" +
-                codeChallenge +
-                "&code_challenge_method=S256",
+                "&redirect_uri=https%3A%2F%2Flocalhost%2Fmyweb&scope=openid&response_type=code&prompt=login",
 
-            headers: {
-                "User-Agent": "ioBroker 1.0",
-            },
+            headers: headers,
+            jar: this.cookieJar,
+            withCredentials: true,
         })
             .then((res) => {
                 this.log.debug(JSON.stringify(res.data));
@@ -89,6 +85,92 @@ class ZehnderCloud extends utils.Adapter {
             .catch((error) => {
                 this.log.error(error);
                 error.response && this.log.error(JSON.stringify(error.response.data));
+            });
+        if (!htmlLoginForm) {
+            return;
+        }
+
+        let csrf = htmlLoginForm.split('"csrf":"')[1].split('"')[0];
+        let state = htmlLoginForm.split("StateProperties=")[1].split('"')[0];
+        let data = "request_type=RESPONSE&email=" + encodeURIComponent(this.config.username) + "&password=" + encodeURIComponent(this.config.password);
+        headers["X-CSRF-TOKEN"] = csrf;
+        await this.requestClient({
+            method: "post",
+            url: "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/SelfAsserted?tx=StateProperties=" + state + "&p=B2C_1_signin_signup_enduser",
+            headers: headers,
+            data: data,
+            jar: this.cookieJar,
+            withCredentials: true,
+        })
+            .then((res) => {
+                this.log.debug(JSON.stringify(res.data));
+                return res.data;
+            })
+            .catch((error) => {
+                error.response && this.log.error(JSON.stringify(error.response.data));
+            });
+
+        const code = await this.requestClient({
+            method: "get",
+            url:
+                "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/api/CombinedSigninAndSignup/confirmed?rememberMe=false&csrf_token=" +
+                csrf +
+                "&tx=StateProperties=" +
+                state +
+                "&p=B2C_1_signin_signup_enduser",
+            headers: headers,
+            jar: this.cookieJar,
+            withCredentials: true,
+        })
+            .then((res) => {
+                this.log.debug(JSON.stringify(res.data));
+                return res.data;
+            })
+            .catch((error) => {
+                let code = "";
+                if (error.response && error.response.status === 400) {
+                    this.log.error(JSON.stringify(error.response.data));
+                    return;
+                }
+                if (error.response && error.response.status === 500) {
+                    this.log.info("Please check username and password.");
+                }
+                if (error.request) {
+                    this.log.debug(JSON.stringify(error.request.path));
+                    code = qs.parse(error.request.path.split("?")[1]).code;
+                    this.log.debug(code);
+                    return code;
+                }
+            });
+        data = {
+            grant_type: "authorization_code",
+            code: code,
+            client_id: "df77b1ce-c368-4f7f-b0e6-c1406ac6bac9",
+            redirect_uri: "https://localhost/myweb",
+            scope: "openid",
+        };
+
+        await this.requestClient({
+            method: "post",
+            url: "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/oauth2/v2.0/token",
+            headers: headers,
+            data: qs.stringify(data),
+        })
+            .then((res) => {
+                this.log.debug(JSON.stringify(res.data));
+                this.session = res.data;
+                this.setState("info.connection", true, true);
+                return res.data;
+            })
+            .catch((error) => {
+                this.setState("info.connection", false, true);
+                this.log.error(error);
+                if (error.response && error.response.status === 429) {
+                    this.log.info("Rate limit reached. Will be reseted next day 02:00");
+                }
+                if (error.response) {
+                    this.log.error(JSON.stringify(error.response.data));
+                }
             });
     }
     async getDeviceList() {}
