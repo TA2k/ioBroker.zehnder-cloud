@@ -62,6 +62,7 @@ class ZehnderCloud extends utils.Adapter {
         }
     }
     async login() {
+        let [code_verifier, codeChallenge] = this.getCodeChallenge();
         const headers = {
             "User-Agent": "ioBroker 1.0",
         };
@@ -70,7 +71,9 @@ class ZehnderCloud extends utils.Adapter {
             url:
                 "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/oauth2/v2.0/authorize?p=B2C_1_signin_signup_enduser&client_id=df77b1ce-c368-4f7f-b0e6-c1406ac6bac9&nonce=" +
                 this.randomString(16) +
-                "&redirect_uri=https%3A%2F%2Flocalhost%2Fmyweb&scope=openid&response_type=code&prompt=login",
+                "&redirect_uri=https%3A%2F%2Flocalhost%2Fmyweb&scope=openid&response_type=code&prompt=login&code_challenge=" +
+                codeChallenge +
+                "&code_challenge_method=S256",
 
             headers: headers,
             jar: this.cookieJar,
@@ -148,11 +151,12 @@ class ZehnderCloud extends utils.Adapter {
             client_id: "df77b1ce-c368-4f7f-b0e6-c1406ac6bac9",
             redirect_uri: "https://localhost/myweb",
             scope: "openid",
+            code_verifier: code_verifier,
         };
 
         await this.requestClient({
             method: "post",
-            url: "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/oauth2/v2.0/token",
+            url: "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/oauth2/v2.0/token",
             headers: headers,
             data: qs.stringify(data),
         })
