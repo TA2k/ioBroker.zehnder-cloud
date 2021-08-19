@@ -63,7 +63,7 @@ class ZehnderCloud extends utils.Adapter {
         }
     }
     async login() {
-        let [code_verifier, codeChallenge] = this.getCodeChallenge();
+        const [code_verifier, codeChallenge] = this.getCodeChallenge();
         const headers = {
             "User-Agent": "ioBroker 1.0",
         };
@@ -94,8 +94,8 @@ class ZehnderCloud extends utils.Adapter {
             return;
         }
 
-        let csrf = htmlLoginForm.split('"csrf":"')[1].split('"')[0];
-        let state = htmlLoginForm.split("StateProperties=")[1].split('"')[0];
+        const csrf = htmlLoginForm.split('"csrf":"')[1].split('"')[0];
+        const state = htmlLoginForm.split("StateProperties=")[1].split('"')[0];
         let data = "request_type=RESPONSE&email=" + encodeURIComponent(this.config.username) + "&password=" + encodeURIComponent(this.config.password);
         headers["X-CSRF-TOKEN"] = csrf;
         await this.requestClient({
@@ -208,7 +208,7 @@ class ZehnderCloud extends utils.Adapter {
                         native: {},
                     });
 
-                    this.json2iob?.parse(device.id + ".general", device);
+                    this.json2iob.parse(device.id + ".general", device);
                 }
             })
             .catch((error) => {
