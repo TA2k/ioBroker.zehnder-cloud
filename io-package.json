@@ -81,6 +81,7 @@
     "native": {
         "username": "",
         "password": "",
+        "subKey": "",
         "interval": 5
     },
     "objects": [],

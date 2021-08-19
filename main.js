@@ -46,19 +46,20 @@ class ZehnderCloud extends utils.Adapter {
         this.updateInterval = null;
         this.reLoginTimeout = null;
         this.refreshTokenTimeout = null;
+        this.idArray = [];
 
         this.session = {};
         this.json2iob = new Json2iob(this);
 
         await this.login();
-        if (this.session.access_token) {
+        if (this.session.id_token) {
             await this.getDeviceList();
             this.updateInterval = setInterval(async () => {
                 await this.updateDevices();
             }, this.config.interval * 60 * 1000);
             this.refreshTokenInterval = setInterval(() => {
                 this.refreshToken();
-            }, this.session.expires_in * 1000);
+            }, this.session.id_token_expires_in * 1000);
         }
     }
     async login() {
@@ -148,7 +149,6 @@ class ZehnderCloud extends utils.Adapter {
         data = {
             grant_type: "authorization_code",
             code: code,
-            client_id: "df77b1ce-c368-4f7f-b0e6-c1406ac6bac9",
             redirect_uri: "https://localhost/myweb",
             scope: "openid",
             code_verifier: code_verifier,
@@ -169,17 +169,81 @@ class ZehnderCloud extends utils.Adapter {
             .catch((error) => {
                 this.setState("info.connection", false, true);
                 this.log.error(error);
-                if (error.response && error.response.status === 429) {
-                    this.log.info("Rate limit reached. Will be reseted next day 02:00");
-                }
+
                 if (error.response) {
                     this.log.error(JSON.stringify(error.response.data));
                 }
             });
     }
-    async getDeviceList() {}
+    async getDeviceList() {
+        const headers = {
+            "Content-Type": "application/json",
+            Accept: "*/*",
+            "User-Agent": "ioBroker 1.0.0",
+            Authorization: "Bearer " + this.session.id_token,
+            "x-api-key": this.config.subKey,
+        };
+        await this.requestClient({
+            method: "get",
+            url: "https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/ids",
+            headers: headers,
+        })
+            .then(async (res) => {
+                this.log.debug(JSON.stringify(res.data));
+                for (const device of res.data.data) {
+                    this.idArray.push(device.id);
+                    await this.setObjectNotExistsAsync(device.id, {
+                        type: "device",
+                        common: {
+                            name: device.modelId,
+                        },
+                        native: {},
+                    });
+
+                    await this.setObjectNotExistsAsync(device.id + ".general", {
+                        type: "channel",
+                        common: {
+                            name: "General Device Information",
+                        },
+                        native: {},
+                    });
+
+                    this.json2iob?.parse(device.id + ".general", device);
+                }
+            })
+            .catch((error) => {
+                this.log.error(error);
+                error.response && this.log.error(JSON.stringify(error.response.data));
+            });
+    }
     async updateDevices() {}
-    async refreshToken() {}
+    async refreshToken() {
+        await this.requestClient({
+            method: "post",
+            url: "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/oauth2/v2.0/token",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": "ioBroker 1.0",
+            },
+            data: "grant_type=refresh_token&client_id=df77b1ce-c368-4f7f-b0e6-c1406ac6bac9&refresh_token=" + this.session.refresh_token,
+        })
+            .then((res) => {
+                this.log.debug(JSON.stringify(res.data));
+                this.session = res.data;
+                this.setState("info.connection", true, true);
+                return res.data;
+            })
+            .catch((error) => {
+                this.setState("info.connection", false, true);
+                this.log.error("refresh token failed");
+                this.log.error(error);
+                error.response && this.log.error(JSON.stringify(error.response.data));
+                this.log.error("Start relogin in 1min");
+                this.reLoginTimeout = setTimeout(() => {
+                    this.login();
+                }, 1000 * 60 * 1);
+            });
+    }
 
     getCodeChallenge() {
         let hash = "";
