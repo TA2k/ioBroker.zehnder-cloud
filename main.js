@@ -193,13 +193,14 @@ class ZehnderCloud extends utils.Adapter {
             .then(async (res) => {
                 this.log.debug(JSON.stringify(res.data));
                 this.idArray = res.data;
+                await this.getDeviceDetails();
             })
             .catch((error) => {
                 this.log.error(error);
                 error.response && this.log.error(JSON.stringify(error.response.data));
             });
     }
-    async updateDevices() {
+    async getDeviceDetails() {
         const headers = {
             "Content-Type": "application/json",
             Accept: "*/*",
@@ -231,6 +232,47 @@ class ZehnderCloud extends utils.Adapter {
                     this.log.error(error);
                     error.response && this.log.error(JSON.stringify(error.response.data));
                 });
+        }
+    }
+    async updateDevices() {
+        const headers = {
+            "Content-Type": "application/json",
+            Accept: "*/*",
+            "User-Agent": "ioBroker 1.0.0",
+            Authorization: "Bearer " + this.session.id_token,
+            "x-api-key": this.config.subKey,
+        };
+        const statusArray = [
+            { path: "state", url: "https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/{deviceId}/state", desc: "Current status of the device" },
+            { path: "weather", url: "https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/{deviceId}/weather", desc: "Current weather of the device" },
+        ];
+        for (let id of this.idArray) {
+            id = id.toString();
+            for (let element of statusArray) {
+                let url = element.url.replace("{deviceId}", id);
+                await this.requestClient({
+                    method: "get",
+                    url: url,
+                    headers: headers,
+                })
+                    .then(async (res) => {
+                        this.log.debug(JSON.stringify(res.data));
+                        const state = res.data.values;
+                        await this.setObjectNotExistsAsync(id + "." + element.path, {
+                            type: "channel",
+                            common: {
+                                name: element.desc,
+                            },
+                            native: {},
+                        });
+
+                        this.json2iob.parse(id + "." + element.path, state);
+                    })
+                    .catch((error) => {
+                        this.log.error(error);
+                        error.response && this.log.error(JSON.stringify(error.response.data));
+                    });
+            }
         }
     }
     async refreshToken() {
