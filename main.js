@@ -26,6 +26,10 @@ class ZehnderCloud extends utils.Adapter {
         this.on("ready", this.onReady.bind(this));
         this.on("stateChange", this.onStateChange.bind(this));
         this.on("unload", this.onUnload.bind(this));
+        this.idArray = [];
+
+        this.session = {};
+        this.json2iob = new Json2iob(this);
     }
 
     /**
@@ -46,10 +50,6 @@ class ZehnderCloud extends utils.Adapter {
         this.updateInterval = null;
         this.reLoginTimeout = null;
         this.refreshTokenTimeout = null;
-        this.idArray = [];
-
-        this.session = {};
-        this.json2iob = new Json2iob(this);
 
         await this.login();
 
@@ -65,7 +65,7 @@ class ZehnderCloud extends utils.Adapter {
         }
     }
     async login() {
-        let [code_verifier, codeChallenge] = this.getCodeChallenge();
+        const [code_verifier, codeChallenge] = this.getCodeChallenge();
         const headers = {
             "User-Agent": "ioBroker 1.0",
         };
@@ -96,8 +96,8 @@ class ZehnderCloud extends utils.Adapter {
             return;
         }
 
-        let csrf = htmlLoginForm.split('"csrf":"')[1].split('"')[0];
-        let state = htmlLoginForm.split("StateProperties=")[1].split('"')[0];
+        const csrf = htmlLoginForm.split('"csrf":"')[1].split('"')[0];
+        const state = htmlLoginForm.split("StateProperties=")[1].split('"')[0];
         let data = "request_type=RESPONSE&email=" + encodeURIComponent(this.config.username) + "&password=" + encodeURIComponent(this.config.password);
         headers["X-CSRF-TOKEN"] = csrf;
         await this.requestClient({
@@ -248,8 +248,8 @@ class ZehnderCloud extends utils.Adapter {
         ];
         for (let id of this.idArray) {
             id = id.toString();
-            for (let element of statusArray) {
-                let url = element.url.replace("{deviceId}", id);
+            for (const element of statusArray) {
+                const url = element.url.replace("{deviceId}", id);
                 await this.requestClient({
                     method: "get",
                     url: url,
