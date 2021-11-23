@@ -1,4 +1,5 @@
 ![Logo](admin/zehnder-cloud.png)
+
 # ioBroker.zehnder-cloud
 
 [![NPM version](https://img.shields.io/npm/v/iobroker.zehnder-cloud.svg)](https://www.npmjs.com/package/iobroker.zehnder-cloud)
@@ -15,12 +16,22 @@
 
 Adapter for Zehnder Cloud API
 
+## Loginablauf
+
+Bei Zehnder cloud API anmelden und ein subscription key beantragen
+
+## Diskussion und Fragen
+
+<https://forum.iobroker.net/topic/47856/test-adapter-zehnder-cloud-v-0-0-1>
+
 ## Changelog
 
 ### 0.0.1
+
 * (TA2k) initial release
 
 ## License
+
 MIT License
 
 Copyright (c) 2021 TA2k <tombox2020@gmail.com>
