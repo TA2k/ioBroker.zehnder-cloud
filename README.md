@@ -26,7 +26,7 @@ Bei Zehnder cloud API anmelden und ein subscription key beantragen
 
 ## Changelog
 
-### 0.0.1
+### 0.0.3
 
 * (TA2k) initial release
 

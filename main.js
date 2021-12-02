@@ -51,6 +51,7 @@ class ZehnderCloud extends utils.Adapter {
         this.reLoginTimeout = null;
         this.refreshTokenTimeout = null;
 
+        this.subscribeStates("*.remote.*");
         await this.login();
 
         if (this.session.id_token) {
@@ -69,15 +70,16 @@ class ZehnderCloud extends utils.Adapter {
         const headers = {
             "User-Agent": "ioBroker 1.0",
         };
+        const url =
+            "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/oauth2/v2.0/authorize?p=B2C_1_signin_signup_enduser&client_id=df77b1ce-c368-4f7f-b0e6-c1406ac6bac9&nonce=" +
+            this.randomString(16) +
+            "&redirect_uri=https%3A%2F%2Flocalhost%2Fmyweb&scope=openid%20offline_access&response_type=code&prompt=login&code_challenge=" +
+            codeChallenge +
+            "&code_challenge_method=S256";
+        this.log.debug(url);
         const htmlLoginForm = await this.requestClient({
             method: "get",
-            url:
-                "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/oauth2/v2.0/authorize?p=B2C_1_signin_signup_enduser&client_id=df77b1ce-c368-4f7f-b0e6-c1406ac6bac9&nonce=" +
-                this.randomString(16) +
-                "&redirect_uri=https%3A%2F%2Flocalhost%2Fmyweb&scope=openid%20offline_access&response_type=code&prompt=login&code_challenge=" +
-                codeChallenge +
-                "&code_challenge_method=S256",
-
+            url: url,
             headers: headers,
             jar: this.cookieJar,
             withCredentials: true,
@@ -178,6 +180,7 @@ class ZehnderCloud extends utils.Adapter {
             });
     }
     async getDeviceList() {
+        this.log.info("Getting device list...");
         const headers = {
             "Content-Type": "application/json",
             Accept: "*/*",
@@ -193,6 +196,7 @@ class ZehnderCloud extends utils.Adapter {
             .then(async (res) => {
                 this.log.debug(JSON.stringify(res.data));
                 this.idArray = res.data;
+                this.log.info("Found " + this.idArray.length + " devices.");
                 await this.getDeviceDetails();
             })
             .catch((error) => {
@@ -216,6 +220,7 @@ class ZehnderCloud extends utils.Adapter {
                 headers: headers,
             })
                 .then(async (res) => {
+                    this.log.debug("Details:");
                     this.log.debug(JSON.stringify(res.data));
                     const device = res.data;
                     await this.setObjectNotExistsAsync(id, {
@@ -225,8 +230,45 @@ class ZehnderCloud extends utils.Adapter {
                         },
                         native: {},
                     });
+                    await this.setObjectNotExistsAsync(id + ".remote", {
+                        type: "channel",
+                        common: {
+                            name: "Remote Controls",
+                        },
+                        native: {},
+                    });
 
-                    this.json2iob.parse(id, device);
+                    const remoteArray = [
+                        { command: "setVentilationPreset-value", name: "Example: Away", type: "string" },
+                        { command: "setManualMode-enabled", name: "True = Start, False = Stop" },
+                        { command: "setAway-enabled", name: "True = Start, False = Stop" },
+                        { command: "setBoostTimer-seconds", name: "Booster Timer in seconds", type: "number", role: "value" },
+                        { command: "setExhaustFanOff-seconds", name: "Exhaust Fan Off in seconds", type: "number", role: "value" },
+                        { command: "setSupplyFanOff-seconds", name: "Supply Fan Off in seconds", type: "number", role: "value" },
+                        { command: "forceBypass-seconds", name: "Force Bypass in seconds", type: "number", role: "value" },
+                        { command: "setRMOTCool-temperature", name: "Temperature", type: "number", role: "value" },
+                        { command: "setRMOTHeat-temperature", name: "Temperature", type: "number", role: "value" },
+                        { command: "setTemperatureProfile-mode", name: "Example: Cool, Heat", type: "string" },
+                        { command: "setComfortMode-mode", name: "Example: Adaptive", type: "string" },
+                        { command: "setPassiveTemperatureMode-mode", name: "Off, On", type: "string" },
+                        { command: "setHumidityComfortMode-mode", name: "Off, On", type: "string" },
+                        { command: "setHumidityProtectionMode-mode", name: "Off, On", type: "string" },
+                        { command: "forceRefresh", name: "True = Refresh" },
+                    ];
+                    remoteArray.forEach((remote) => {
+                        this.setObjectNotExists(id + ".remote." + remote.command, {
+                            type: "state",
+                            common: {
+                                name: remote.name || "",
+                                type: remote.type || "boolean",
+                                role: remote.role || "boolean",
+                                write: true,
+                                read: true,
+                            },
+                            native: {},
+                        });
+                    });
+                    this.json2iob.parse(id, device, { autoCast: true, forceIndex: true });
                 })
                 .catch((error) => {
                     this.log.error(error);
@@ -256,6 +298,7 @@ class ZehnderCloud extends utils.Adapter {
                     headers: headers,
                 })
                     .then(async (res) => {
+                        this.log.debug(element.path);
                         this.log.debug(JSON.stringify(res.data));
                         const state = res.data.values;
                         await this.setObjectNotExistsAsync(id + "." + element.path, {
@@ -266,7 +309,7 @@ class ZehnderCloud extends utils.Adapter {
                             native: {},
                         });
 
-                        this.json2iob.parse(id + "." + element.path, state);
+                        this.json2iob.parse(id + "." + element.path, state, { autoCast: true });
                     })
                     .catch((error) => {
                         this.log.error(error);
@@ -346,12 +389,51 @@ class ZehnderCloud extends utils.Adapter {
     async onStateChange(id, state) {
         if (state) {
             if (!state.ack) {
-                const vidin = id.split(".")[2];
+                if (id.indexOf(".remote.") === -1) {
+                    this.log.info("Please use remote to control device ");
+                    return;
+                }
+
+                const deviceId = id.split(".")[2];
 
                 let command = id.split(".")[4];
+                if (command === "forceRefresh") {
+                    this.updateDevices();
+                    return;
+                }
                 const action = command.split("-")[1];
                 command = command.split("-")[0];
 
+                const data = {};
+                data[command] = {};
+                data[command][action] = state.val;
+                this.log.debug(JSON.stringify(data));
+
+                const headers = {
+                    "Content-Type": "application/json",
+                    Accept: "*/*",
+                    "User-Agent": "ioBroker 1.0.0",
+                    Authorization: "Bearer " + this.session.id_token,
+                    "x-api-key": this.config.subKey,
+                };
+                await this.requestClient({
+                    method: "put",
+                    url: "https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/" + deviceId + "/comfosys/settings",
+                    headers: headers,
+                    data: data,
+                })
+                    .then((res) => {
+                        this.log.debug(JSON.stringify(res.data));
+                        this.log.debug(res.status);
+                        return res.data;
+                    })
+                    .catch((error) => {
+                        this.log.error(error);
+                        if (error.response) {
+                            this.log.error(JSON.stringify(error.response.data));
+                        }
+                    });
+                this.refreshTimeout && clearTimeout(this.refreshTimeout);
                 this.refreshTimeout = setTimeout(async () => {
                     await this.updateDevices();
                 }, 10 * 1000);

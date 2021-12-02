@@ -1,6 +1,6 @@
 {
   "name": "iobroker.zehnder-cloud",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Adapter for Zehnder Cloud API",
   "author": {
     "name": "TA2k",
