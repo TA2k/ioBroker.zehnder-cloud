@@ -62,7 +62,7 @@ class ZehnderCloud extends utils.Adapter {
             }, this.config.interval * 60 * 1000);
             this.refreshTokenInterval = setInterval(() => {
                 this.refreshToken();
-            }, this.session.id_token_expires_in * 1000);
+            }, (this.session.id_token_expires_in - 100) * 1000);
         }
     }
     async login() {
@@ -312,6 +312,7 @@ class ZehnderCloud extends utils.Adapter {
                         this.json2iob.parse(id + "." + element.path, state, { autoCast: true });
                     })
                     .catch((error) => {
+                        this.log.error("Failed: " + element.url);
                         this.log.error(error);
                         error.response && this.log.error(JSON.stringify(error.response.data));
                     });
