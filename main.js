@@ -51,6 +51,10 @@ class ZehnderCloud extends utils.Adapter {
         this.refreshTokenTimeout = null;
 
         this.subscribeStates("*.remote.*");
+        if (!this.config.username || !this.config.password) {
+            this.log.error("Please set username and password in the adapter settings!");
+            return;
+        }
         await this.login();
 
         if (this.session.id_token) {
