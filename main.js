@@ -147,8 +147,9 @@ class ZehnderCloud extends utils.Adapter {
                     this.log.info("Please check username and password.");
                 }
                 if (error.request) {
-                    this.log.debug(JSON.stringify(error.request.path));
-                    code = qs.parse(error.request.path.split("?")[1]).code;
+                    const pathUrl = error.request.path ? error.request.path : error.request._currentUrl;
+                    this.log.debug(pathUrl);
+                    code = qs.parse(pathUrl.split("?")[1]).code;
                     this.log.debug(code);
                     return code;
                 }
