@@ -12,7 +12,7 @@ const qs = require("qs");
 
 const crypto = require("crypto");
 const Json2iob = require("./lib/json2iob");
-const axiosCookieJarSupport = require("axios-cookiejar-support").default;
+const { wrapper } = require("axios-cookiejar-support");
 const tough = require("tough-cookie");
 class ZehnderCloud extends utils.Adapter {
     /**
@@ -44,9 +44,8 @@ class ZehnderCloud extends utils.Adapter {
             this.log.info("Set interval to minimum 0.5");
             this.config.interval = 0.5;
         }
-        axiosCookieJarSupport(axios);
         this.cookieJar = new tough.CookieJar();
-        this.requestClient = axios.create();
+        this.requestClient = wrapper(axios.create({ jar: this.cookieJar }));
         this.updateInterval = null;
         this.reLoginTimeout = null;
         this.refreshTokenTimeout = null;
