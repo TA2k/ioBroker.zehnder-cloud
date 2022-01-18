@@ -378,8 +378,10 @@ class ZehnderCloud extends utils.Adapter {
      */
     onUnload(callback) {
         try {
-            clearInterval(this.updateInterval);
-            clearInterval(this.refreshTokenInterval);
+            this.updateInterval && clearInterval(this.updateInterval);
+            this.refreshTokenInterval && clearInterval(this.refreshTokenInterval);
+            this.reLoginTimeout && clearTimeout(this.reLoginTimeout);
+            this.refreshTimeout && clearTimeout(this.refreshTimeout);
             callback();
         } catch (e) {
             callback();
