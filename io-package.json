@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "zehnder-cloud",
-    "version": "0.0.7",
+    "version": "0.0.8",
+
     "news": {
+      "0.0.8": {
+        "en": "dependencies update"
+      },
       "0.0.7": {
         "en": "small bugfixes"
       },
