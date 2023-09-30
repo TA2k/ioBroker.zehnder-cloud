@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /*
  * Created with @iobroker/create-adapter v1.34.1
@@ -6,14 +6,14 @@
 
 // The adapter-core module gives you access to the core ioBroker functions
 // you need to create an adapter
-const utils = require("@iobroker/adapter-core");
-const axios = require("axios").default;
-const qs = require("qs");
+const utils = require('@iobroker/adapter-core');
+const axios = require('axios').default;
+const qs = require('qs');
 
-const crypto = require("crypto");
-const Json2iob = require("./lib/json2iob");
-const { wrapper } = require("axios-cookiejar-support");
-const tough = require("tough-cookie");
+const crypto = require('crypto');
+const Json2iob = require('json2iob');
+const { wrapper } = require('axios-cookiejar-support');
+const tough = require('tough-cookie');
 class ZehnderCloud extends utils.Adapter {
   /**
    * @param {Partial<utils.AdapterOptions>} [options={}]
@@ -21,15 +21,21 @@ class ZehnderCloud extends utils.Adapter {
   constructor(options) {
     super({
       ...options,
-      name: "zehnder-cloud",
+      name: 'zehnder-cloud',
     });
-    this.on("ready", this.onReady.bind(this));
-    this.on("stateChange", this.onStateChange.bind(this));
-    this.on("unload", this.onUnload.bind(this));
+    this.on('ready', this.onReady.bind(this));
+    this.on('stateChange', this.onStateChange.bind(this));
+    this.on('unload', this.onUnload.bind(this));
     this.idArray = [];
 
     this.session = {};
     this.json2iob = new Json2iob(this);
+
+    this.cookieJar = new tough.CookieJar();
+    this.requestClient = wrapper(axios.create({ jar: this.cookieJar }));
+    this.updateInterval = null;
+    this.reLoginTimeout = null;
+    this.refreshTokenTimeout = null;
   }
 
   /**
@@ -39,20 +45,15 @@ class ZehnderCloud extends utils.Adapter {
     // Initialize your adapter here
 
     // Reset the connection indicator during startup
-    this.setState("info.connection", false, true);
+    this.setState('info.connection', false, true);
     if (this.config.interval < 0.5) {
-      this.log.info("Set interval to minimum 0.5");
+      this.log.info('Set interval to minimum 0.5');
       this.config.interval = 0.5;
     }
-    this.cookieJar = new tough.CookieJar();
-    this.requestClient = wrapper(axios.create({ jar: this.cookieJar }));
-    this.updateInterval = null;
-    this.reLoginTimeout = null;
-    this.refreshTokenTimeout = null;
 
-    this.subscribeStates("*.remote.*");
+    this.subscribeStates('*.remote.*');
     if (!this.config.username || !this.config.password) {
-      this.log.error("Please set username and password in the adapter settings!");
+      this.log.error('Please set username and password in the adapter settings!');
       return;
     }
     await this.login();
@@ -71,17 +72,17 @@ class ZehnderCloud extends utils.Adapter {
   async login() {
     const [code_verifier, codeChallenge] = this.getCodeChallenge();
     const headers = {
-      "User-Agent": "ioBroker 1.0",
+      'User-Agent': 'ioBroker 1.0',
     };
     const url =
-      "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/oauth2/v2.0/authorize?p=B2C_1_signin_signup_enduser&client_id=df77b1ce-c368-4f7f-b0e6-c1406ac6bac9&nonce=" +
+      'https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/oauth2/v2.0/authorize?p=B2C_1_signin_signup_enduser&client_id=df77b1ce-c368-4f7f-b0e6-c1406ac6bac9&nonce=' +
       this.randomString(16) +
-      "&redirect_uri=https%3A%2F%2Flocalhost%2Fmyweb&scope=openid%20offline_access&response_type=code&prompt=login&code_challenge=" +
+      '&redirect_uri=https%3A%2F%2Flocalhost%2Fmyweb&scope=openid%20offline_access&response_type=code&prompt=login&code_challenge=' +
       codeChallenge +
-      "&code_challenge_method=S256";
+      '&code_challenge_method=S256';
     this.log.debug(url);
     const htmlLoginForm = await this.requestClient({
-      method: "get",
+      method: 'get',
       url: url,
       headers: headers,
       jar: this.cookieJar,
@@ -90,7 +91,7 @@ class ZehnderCloud extends utils.Adapter {
       .then((res) => {
         this.log.debug(JSON.stringify(res.data));
         this.session = res.data;
-        this.setState("info.connection", true, true);
+        this.setState('info.connection', true, true);
         return res.data;
       })
       .catch((error) => {
@@ -102,15 +103,19 @@ class ZehnderCloud extends utils.Adapter {
     }
 
     const csrf = htmlLoginForm.split('"csrf":"')[1].split('"')[0];
-    const state = htmlLoginForm.split("StateProperties=")[1].split('"')[0];
-    let data = "request_type=RESPONSE&email=" + encodeURIComponent(this.config.username) + "&password=" + encodeURIComponent(this.config.password);
-    headers["X-CSRF-TOKEN"] = csrf;
+    const state = htmlLoginForm.split('StateProperties=')[1].split('"')[0];
+    let data =
+      'request_type=RESPONSE&email=' +
+      encodeURIComponent(this.config.username) +
+      '&password=' +
+      encodeURIComponent(this.config.password);
+    headers['X-CSRF-TOKEN'] = csrf;
     await this.requestClient({
-      method: "post",
+      method: 'post',
       url:
-        "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/SelfAsserted?tx=StateProperties=" +
+        'https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/SelfAsserted?tx=StateProperties=' +
         state +
-        "&p=B2C_1_signin_signup_enduser",
+        '&p=B2C_1_signin_signup_enduser',
       headers: headers,
       data: data,
       jar: this.cookieJar,
@@ -125,13 +130,13 @@ class ZehnderCloud extends utils.Adapter {
       });
 
     const code = await this.requestClient({
-      method: "get",
+      method: 'get',
       url:
-        "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/api/CombinedSigninAndSignup/confirmed?rememberMe=false&csrf_token=" +
+        'https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/api/CombinedSigninAndSignup/confirmed?rememberMe=false&csrf_token=' +
         csrf +
-        "&tx=StateProperties=" +
+        '&tx=StateProperties=' +
         state +
-        "&p=B2C_1_signin_signup_enduser",
+        '&p=B2C_1_signin_signup_enduser',
       headers: headers,
       jar: this.cookieJar,
       withCredentials: true,
@@ -141,44 +146,44 @@ class ZehnderCloud extends utils.Adapter {
         return res.data;
       })
       .catch((error) => {
-        let code = "";
+        let code = '';
         if (error.response && error.response.status === 400) {
           this.log.error(JSON.stringify(error.response.data));
           return;
         }
         if (error.response && error.response.status === 500) {
-          this.log.info("Please check username and password.");
+          this.log.info('Please check username and password.');
         }
         if (error.request) {
           const pathUrl = error.request.path ? error.request.path : error.request._currentUrl;
           this.log.debug(pathUrl);
-          code = qs.parse(pathUrl.split("?")[1]).code;
+          code = qs.parse(pathUrl.split('?')[1]).code;
           this.log.debug(code);
           return code;
         }
       });
     data = {
-      grant_type: "authorization_code",
+      grant_type: 'authorization_code',
       code: code,
-      redirect_uri: "https://localhost/myweb",
-      scope: "openid offline_access",
+      redirect_uri: 'https://localhost/myweb',
+      scope: 'openid offline_access',
       code_verifier: code_verifier,
     };
     this.log.debug(JSON.stringify(data));
     await this.requestClient({
-      method: "post",
-      url: "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/oauth2/v2.0/token",
+      method: 'post',
+      url: 'https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/oauth2/v2.0/token',
       headers: headers,
       data: qs.stringify(data),
     })
       .then((res) => {
         this.log.debug(JSON.stringify(res.data));
         this.session = res.data;
-        this.setState("info.connection", true, true);
+        this.setState('info.connection', true, true);
         return res.data;
       })
       .catch((error) => {
-        this.setState("info.connection", false, true);
+        this.setState('info.connection', false, true);
         this.log.error(error);
 
         if (error.response) {
@@ -187,23 +192,23 @@ class ZehnderCloud extends utils.Adapter {
       });
   }
   async getDeviceList() {
-    this.log.info("Getting device list...");
+    this.log.info('Getting device list...');
     const headers = {
-      "Content-Type": "application/json",
-      Accept: "*/*",
-      "User-Agent": "ioBroker 1.0.0",
-      Authorization: "Bearer " + this.session.id_token,
-      "x-api-key": this.config.subKey,
+      'Content-Type': 'application/json',
+      Accept: '*/*',
+      'User-Agent': 'ioBroker 1.0.0',
+      Authorization: 'Bearer ' + this.session.id_token,
+      'x-api-key': this.config.subKey,
     };
     await this.requestClient({
-      method: "get",
-      url: "https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/ids",
+      method: 'get',
+      url: 'https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/ids',
       headers: headers,
     })
       .then(async (res) => {
         this.log.debug(JSON.stringify(res.data));
         this.idArray = res.data;
-        this.log.info("Found " + this.idArray.length + " devices.");
+        this.log.info('Found ' + this.idArray.length + ' devices.');
         await this.getDeviceDetails();
       })
       .catch((error) => {
@@ -213,62 +218,62 @@ class ZehnderCloud extends utils.Adapter {
   }
   async getDeviceDetails() {
     const headers = {
-      "Content-Type": "application/json",
-      Accept: "*/*",
-      "User-Agent": "ioBroker 1.0.0",
-      Authorization: "Bearer " + this.session.id_token,
-      "x-api-key": this.config.subKey,
+      'Content-Type': 'application/json',
+      Accept: '*/*',
+      'User-Agent': 'ioBroker 1.0.0',
+      Authorization: 'Bearer ' + this.session.id_token,
+      'x-api-key': this.config.subKey,
     };
     for (let id of this.idArray) {
       id = id.toString();
       await this.requestClient({
-        method: "get",
-        url: "https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/byid/" + id + "/details",
+        method: 'get',
+        url: 'https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/byid/' + id + '/details',
         headers: headers,
       })
         .then(async (res) => {
-          this.log.debug("Details:");
+          this.log.debug('Details:');
           this.log.debug(JSON.stringify(res.data));
           const device = res.data;
           await this.setObjectNotExistsAsync(id, {
-            type: "device",
+            type: 'device',
             common: {
               name: device.assistantName || device.description,
             },
             native: {},
           });
-          await this.setObjectNotExistsAsync(id + ".remote", {
-            type: "channel",
+          await this.setObjectNotExistsAsync(id + '.remote', {
+            type: 'channel',
             common: {
-              name: "Remote Controls",
+              name: 'Remote Controls',
             },
             native: {},
           });
 
           const remoteArray = [
-            { command: "setVentilationPreset-value", name: "Example: Away", type: "string" },
-            { command: "setManualMode-enabled", name: "True = Start, False = Stop" },
-            { command: "setAway-enabled", name: "True = Start, False = Stop" },
-            { command: "setBoostTimer-seconds", name: "Booster Timer in seconds", type: "number", role: "value" },
-            { command: "setExhaustFanOff-seconds", name: "Exhaust Fan Off in seconds", type: "number", role: "value" },
-            { command: "setSupplyFanOff-seconds", name: "Supply Fan Off in seconds", type: "number", role: "value" },
-            { command: "forceBypass-seconds", name: "Force Bypass in seconds", type: "number", role: "value" },
-            { command: "setRMOTCool-temperature", name: "Temperature", type: "number", role: "value" },
-            { command: "setRMOTHeat-temperature", name: "Temperature", type: "number", role: "value" },
-            { command: "setTemperatureProfile-mode", name: "Example: Cool, Heat", type: "string" },
-            { command: "setComfortMode-mode", name: "Example: Adaptive", type: "string" },
-            { command: "setPassiveTemperatureMode-mode", name: "Off, On", type: "string" },
-            { command: "setHumidityComfortMode-mode", name: "Off, On", type: "string" },
-            { command: "setHumidityProtectionMode-mode", name: "Off, On", type: "string" },
-            { command: "forceRefresh", name: "True = Refresh" },
+            { command: 'setVentilationPreset-value', name: 'Example: Away', type: 'string' },
+            { command: 'setManualMode-enabled', name: 'True = Start, False = Stop' },
+            { command: 'setAway-enabled', name: 'True = Start, False = Stop' },
+            { command: 'setBoostTimer-seconds', name: 'Booster Timer in seconds', type: 'number', role: 'value' },
+            { command: 'setExhaustFanOff-seconds', name: 'Exhaust Fan Off in seconds', type: 'number', role: 'value' },
+            { command: 'setSupplyFanOff-seconds', name: 'Supply Fan Off in seconds', type: 'number', role: 'value' },
+            { command: 'forceBypass-seconds', name: 'Force Bypass in seconds', type: 'number', role: 'value' },
+            { command: 'setRMOTCool-temperature', name: 'Temperature', type: 'number', role: 'value' },
+            { command: 'setRMOTHeat-temperature', name: 'Temperature', type: 'number', role: 'value' },
+            { command: 'setTemperatureProfile-mode', name: 'Example: Cool, Heat', type: 'string' },
+            { command: 'setComfortMode-mode', name: 'Example: Adaptive', type: 'string' },
+            { command: 'setPassiveTemperatureMode-mode', name: 'Off, On', type: 'string' },
+            { command: 'setHumidityComfortMode-mode', name: 'Off, On', type: 'string' },
+            { command: 'setHumidityProtectionMode-mode', name: 'Off, On', type: 'string' },
+            { command: 'forceRefresh', name: 'True = Refresh' },
           ];
           remoteArray.forEach((remote) => {
-            this.setObjectNotExists(id + ".remote." + remote.command, {
-              type: "state",
+            this.setObjectNotExists(id + '.remote.' + remote.command, {
+              type: 'state',
               common: {
-                name: remote.name || "",
-                type: remote.type || "boolean",
-                role: remote.role || "boolean",
+                name: remote.name || '',
+                type: remote.type || 'boolean',
+                role: remote.role || 'boolean',
                 write: true,
                 read: true,
               },
@@ -285,30 +290,30 @@ class ZehnderCloud extends utils.Adapter {
   }
   async updateDevices() {
     const headers = {
-      "Content-Type": "application/json",
-      Accept: "*/*",
-      "User-Agent": "ioBroker 1.0.0",
-      Authorization: "Bearer " + this.session.id_token,
-      "x-api-key": this.config.subKey,
+      'Content-Type': 'application/json',
+      Accept: '*/*',
+      'User-Agent': 'ioBroker 1.0.0',
+      Authorization: 'Bearer ' + this.session.id_token,
+      'x-api-key': this.config.subKey,
     };
     const statusArray = [
       {
-        path: "state",
-        url: "https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/{deviceId}/state",
-        desc: "Current status of the device",
+        path: 'state',
+        url: 'https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/{deviceId}/state',
+        desc: 'Current status of the device',
       },
       {
-        path: "weather",
-        url: "https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/{deviceId}/weather",
-        desc: "Current weather of the device",
+        path: 'weather',
+        url: 'https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/{deviceId}/weather',
+        desc: 'Current weather of the device',
       },
     ];
     for (let id of this.idArray) {
       id = id.toString();
       for (const element of statusArray) {
-        const url = element.url.replace("{deviceId}", id);
+        const url = element.url.replace('{deviceId}', id);
         await this.requestClient({
-          method: "get",
+          method: 'get',
           url: url,
           headers: headers,
         })
@@ -316,18 +321,18 @@ class ZehnderCloud extends utils.Adapter {
             this.log.debug(element.path);
             this.log.debug(JSON.stringify(res.data));
             const state = res.data.values;
-            await this.setObjectNotExistsAsync(id + "." + element.path, {
-              type: "channel",
+            await this.setObjectNotExistsAsync(id + '.' + element.path, {
+              type: 'channel',
               common: {
                 name: element.desc,
               },
               native: {},
             });
 
-            this.json2iob.parse(id + "." + element.path, state, { autoCast: true });
+            this.json2iob.parse(id + '.' + element.path, state, { autoCast: true });
           })
           .catch((error) => {
-            this.log.error("Failed: " + element.url);
+            this.log.error('Failed: ' + element.url);
             this.log.error(error);
             error.response && this.log.error(JSON.stringify(error.response.data));
           });
@@ -336,26 +341,28 @@ class ZehnderCloud extends utils.Adapter {
   }
   async refreshToken() {
     await this.requestClient({
-      method: "post",
-      url: "https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/oauth2/v2.0/token",
+      method: 'post',
+      url: 'https://zehndergroupauth.b2clogin.com/zehndergroupauth.onmicrosoft.com/B2C_1_signin_signup_enduser/oauth2/v2.0/token',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": "ioBroker 1.0",
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'ioBroker 1.0',
       },
-      data: "grant_type=refresh_token&client_id=df77b1ce-c368-4f7f-b0e6-c1406ac6bac9&refresh_token=" + this.session.refresh_token,
+      data:
+        'grant_type=refresh_token&client_id=df77b1ce-c368-4f7f-b0e6-c1406ac6bac9&refresh_token=' +
+        this.session.refresh_token,
     })
       .then((res) => {
         this.log.debug(JSON.stringify(res.data));
         this.session = res.data;
-        this.setState("info.connection", true, true);
+        this.setState('info.connection', true, true);
         return res.data;
       })
       .catch((error) => {
-        this.setState("info.connection", false, true);
-        this.log.error("refresh token failed");
+        this.setState('info.connection', false, true);
+        this.log.error('refresh token failed');
         this.log.error(error);
         error.response && this.log.error(JSON.stringify(error.response.data));
-        this.log.error("Start relogin in 1min");
+        this.log.error('Start relogin in 1min');
         this.reLoginTimeout = setTimeout(() => {
           this.login();
         }, 1000 * 60 * 1);
@@ -363,19 +370,19 @@ class ZehnderCloud extends utils.Adapter {
   }
 
   getCodeChallenge() {
-    let hash = "";
-    let result = "";
-    const chars = "0123456789abcdef";
-    result = "";
+    let hash = '';
+    let result = '';
+    const chars = '0123456789abcdef';
+    result = '';
     for (let i = 64; i > 0; --i) result += chars[Math.floor(Math.random() * chars.length)];
-    hash = crypto.createHash("sha256").update(result).digest("base64");
-    hash = hash.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    hash = crypto.createHash('sha256').update(result).digest('base64');
+    hash = hash.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
     return [result, hash];
   }
   randomString(length) {
-    let result = "";
-    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = '';
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     const charactersLength = characters.length;
     for (let i = 0; i < length; i++) {
       result += characters.charAt(Math.floor(Math.random() * charactersLength));
@@ -407,20 +414,20 @@ class ZehnderCloud extends utils.Adapter {
   async onStateChange(id, state) {
     if (state) {
       if (!state.ack) {
-        if (id.indexOf(".remote.") === -1) {
-          this.log.info("Please use remote to control device ");
+        if (id.indexOf('.remote.') === -1) {
+          this.log.info('Please use remote to control device ');
           return;
         }
 
-        const deviceId = id.split(".")[2];
+        const deviceId = id.split('.')[2];
 
-        let command = id.split(".")[4];
-        if (command === "forceRefresh") {
+        let command = id.split('.')[4];
+        if (command === 'forceRefresh') {
           this.updateDevices();
           return;
         }
-        const action = command.split("-")[1];
-        command = command.split("-")[0];
+        const action = command.split('-')[1];
+        command = command.split('-')[0];
 
         const data = {};
         data[command] = {};
@@ -428,15 +435,15 @@ class ZehnderCloud extends utils.Adapter {
         this.log.debug(JSON.stringify(data));
 
         const headers = {
-          "Content-Type": "application/json",
-          Accept: "*/*",
-          "User-Agent": "ioBroker 1.0.0",
-          Authorization: "Bearer " + this.session.id_token,
-          "x-api-key": this.config.subKey,
+          'Content-Type': 'application/json',
+          Accept: '*/*',
+          'User-Agent': 'ioBroker 1.0.0',
+          Authorization: 'Bearer ' + this.session.id_token,
+          'x-api-key': this.config.subKey,
         };
         await this.requestClient({
-          method: "put",
-          url: "https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/" + deviceId + "/comfosys/settings",
+          method: 'put',
+          url: 'https://zehnder-prod-we-apim.azure-api.net/cloud/api/v2.1/devices/' + deviceId + '/comfosys/settings',
           headers: headers,
           data: data,
         })
@@ -459,7 +466,7 @@ class ZehnderCloud extends utils.Adapter {
         // const resultDict = { chargingStatus: "CHARGE_NOW", doorLockState: "DOOR_LOCK" };
         // const idArray = id.split(".");
         // const stateName = idArray[idArray.length - 1];
-        const vin = id.split(".")[2];
+        // const vin = id.split('.')[2];
         // if (resultDict[stateName]) {
         //     let value = true;
         //     if (!state.val || state.val === "INVALID" || state.val === "NOT_CHARGING" || state.val === "ERROR" || state.val === "UNLOCKED") {
