@@ -96,7 +96,7 @@ class ZehnderCloud extends utils.Adapter {
       })
       .catch((error) => {
         this.log.error(error);
-        error.request._currentUrl && this.log.error(error.request._currentUrl.split('?')[1]);
+        error.request._currentUrl && this.log.error(decodeURIComponent(error.request._currentUrl.split('?')[1]));
         error.response && this.log.error(JSON.stringify(error.response.data));
       });
     if (!htmlLoginForm) {
@@ -105,7 +105,11 @@ class ZehnderCloud extends utils.Adapter {
 
     const csrf = htmlLoginForm.split('"csrf":"')[1].split('"')[0];
     const state = htmlLoginForm.split('StateProperties=')[1].split('"')[0];
-    let data = 'request_type=RESPONSE&email=' + encodeURIComponent(this.config.username) + '&password=' + encodeURIComponent(this.config.password);
+    let data =
+      'request_type=RESPONSE&email=' +
+      encodeURIComponent(this.config.username) +
+      '&password=' +
+      encodeURIComponent(this.config.password);
     headers['X-CSRF-TOKEN'] = csrf;
     await this.requestClient({
       method: 'post',
@@ -344,7 +348,9 @@ class ZehnderCloud extends utils.Adapter {
         'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': 'ioBroker 1.0',
       },
-      data: 'grant_type=refresh_token&client_id=df77b1ce-c368-4f7f-b0e6-c1406ac6bac9&refresh_token=' + this.session.refresh_token,
+      data:
+        'grant_type=refresh_token&client_id=df77b1ce-c368-4f7f-b0e6-c1406ac6bac9&refresh_token=' +
+        this.session.refresh_token,
     })
       .then((res) => {
         this.log.debug(JSON.stringify(res.data));
