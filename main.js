@@ -76,6 +76,7 @@ class ZehnderCloud extends utils.Adapter {
       headers: headers,
     })
       .then(async (res) => {
+        this.setState('info.connection', true, true);
         this.log.debug(JSON.stringify(res.data));
         this.idArray = res.data;
         this.log.info('Found ' + this.idArray.length + ' devices.');
