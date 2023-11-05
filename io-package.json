@@ -1,9 +1,12 @@
 {
   "common": {
     "name": "zehnder-cloud",
-    "version": "0.0.8",
+    "version": "2.0.0",
 
     "news": {
+      "2.0.0": {
+        "en": "switch to new zehnder api"
+      },
       "0.0.8": {
         "en": "error improvments and dependencies update"
       },
@@ -79,12 +82,12 @@
       }
     ]
   },
-  "encryptedNative": ["password"],
-  "protectedNative": ["password"],
+  "encryptedNative": ["apikey"],
+  "protectedNative": ["apikey"],
   "native": {
-    "username": "",
-    "password": "",
-    "subKey": "",
+    "apiname": "",
+    "apikey": "",
+    "subKeyNew": "",
     "interval": 5
   },
   "objects": [],
