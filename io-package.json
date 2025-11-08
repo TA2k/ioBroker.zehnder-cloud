@@ -60,6 +60,7 @@
     "extIcon": "https://raw.githubusercontent.com/TA2k/ioBroker.zehnder-cloud/master/admin/zehnder-cloud.png",
     "readme": "https://github.com/TA2k/ioBroker.zehnder-cloud/blob/master/README.md",
     "loglevel": "info",
+    "tier": 2,
     "mode": "daemon",
     "type": "climate-control",
     "compact": true,
