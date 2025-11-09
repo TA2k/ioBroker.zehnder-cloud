@@ -52,7 +52,10 @@
     },
     "authors": ["TA2k <tombox2020@gmail.com>"],
     "keywords": ["zehnder", "comfoairq"],
-    "license": "MIT",
+    "licenseInformation": {
+      "type": "free",
+      "license": "MIT"
+    },
     "platform": "Javascript/Node.js",
     "main": "main.js",
     "icon": "zehnder-cloud.png",
