@@ -54,7 +54,6 @@
     "keywords": ["zehnder", "comfoairq"],
     "license": "MIT",
     "platform": "Javascript/Node.js",
-    "main": "main.js",
     "icon": "zehnder-cloud.png",
     "enabled": true,
     "extIcon": "https://raw.githubusercontent.com/TA2k/ioBroker.zehnder-cloud/master/admin/zehnder-cloud.png",
