@@ -33,6 +33,10 @@ Adapter for Zehnder Cloud API
 
 ## Changelog
 
+
+### **WORK IN PROGRESS**
+- (ioBroker-Bot) Adapter requires js-controller >= 6.0.11 now.
+
 ### 2.0.0
 
 - (TA2k) switch to new api from zehnder
