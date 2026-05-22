@@ -2,7 +2,6 @@
   "common": {
     "name": "zehnder-cloud",
     "version": "2.0.0",
-
     "news": {
       "2.0.0": {
         "en": "switch to new zehnder api"
@@ -50,8 +49,13 @@
       "pl": "Adapter do interfejsu Zehnder Cloud API",
       "zh-cn": "Zehnder Cloud API 适配器"
     },
-    "authors": ["TA2k <tombox2020@gmail.com>"],
-    "keywords": ["zehnder", "comfoairq"],
+    "authors": [
+      "TA2k <tombox2020@gmail.com>"
+    ],
+    "keywords": [
+      "zehnder",
+      "comfoairq"
+    ],
     "license": "MIT",
     "platform": "Javascript/Node.js",
     "main": "main.js",
@@ -73,7 +77,7 @@
     },
     "dependencies": [
       {
-        "js-controller": ">=3.0.0"
+        "js-controller": ">=6.0.11"
       }
     ],
     "globalDependencies": [
@@ -82,8 +86,12 @@
       }
     ]
   },
-  "encryptedNative": ["apikey"],
-  "protectedNative": ["apikey"],
+  "encryptedNative": [
+    "apikey"
+  ],
+  "protectedNative": [
+    "apikey"
+  ],
   "native": {
     "apiname": "",
     "apikey": "",
